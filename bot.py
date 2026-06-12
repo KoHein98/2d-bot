@@ -5,14 +5,11 @@ import re
 
 TOKEN = os.getenv("BOT_TOKEN")
 
-# =========================
-# 🧠 STORE RAW TEXT ONLY
-# =========================
 data_store = {}
 
 
 # =========================
-# 🧹 CLEAN LINE
+# 🧹 CLEAN
 # =========================
 def clean_text(text):
     text = text.replace("..", " ")
@@ -22,7 +19,7 @@ def clean_text(text):
 
 
 # =========================
-# 🧠 PARSE MESSAGE
+# 🧠 PARSE
 # =========================
 def parse_line(line):
     line = clean_text(line)
@@ -33,9 +30,7 @@ def parse_line(line):
 
     amount = int(nums[-1])
 
-    # remove last number (stake)
     main_part = line[::-1].replace(nums[-1][::-1], "", 1)[::-1].strip()
-
     numbers = re.findall(r"\d+", main_part)
 
     return {
@@ -53,21 +48,41 @@ async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     data_store.setdefault(chat_id, [])
 
-    parsed_lines = []
+    batch = []
 
     for line in text.splitlines():
         parsed = parse_line(line)
         if parsed:
-            parsed_lines.append(parsed)
+            batch.append(parsed)
             data_store[chat_id].append(parsed)
 
-    await update.message.reply_text("✔ Saved")
+    batch_total = sum(b["amount"] for b in batch)
+
+    await update.message.reply_text(
+        f"📊 Batch Total = {batch_total:,}\n✔ Saved"
+    )
 
 
 # =========================
-# 🔎 FILTER: NUMBER → AMOUNT
+# 🔎 TOTAL COMMAND
 # =========================
-def map_number(data, query):
+async def total_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    data = data_store.get(chat_id, [])
+
+    # =========================
+    # 🟢 GRAND TOTAL
+    # =========================
+    if not context.args:
+        grand_total = sum(b["amount"] for b in data)
+        await update.message.reply_text(f"💰 GRAND TOTAL = {grand_total:,}")
+        return
+
+    # =========================
+    # 🟡 FILTER MODE
+    # =========================
+    query = context.args[0]
+
     results = []
     total = 0
 
@@ -75,24 +90,6 @@ def map_number(data, query):
         if query in item["numbers"]:
             results.append(f"{query} → {item['amount']:,}")
             total += item["amount"]
-
-    return results, total
-
-
-# =========================
-# 📌 /total COMMAND
-# =========================
-async def total_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-    data = data_store.get(chat_id, [])
-
-    if not context.args:
-        await update.message.reply_text("❌ Please enter number (/total 11)")
-        return
-
-    query = context.args[0]
-
-    results, total = map_number(data, query)
 
     if not results:
         await update.message.reply_text("❌ No match found")
@@ -106,12 +103,12 @@ async def total_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # =========================
-# 🚀 RUN BOT
+# 🚀 RUN
 # =========================
 app = Application.builder().token(TOKEN).build()
 
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handler))
 app.add_handler(CommandHandler("total", total_cmd))
 
-print("🚀 FINAL NUMBER MAPPING BOT RUNNING...")
+print("🚀 BOT RUNNING WITH GRAND TOTAL + FILTER")
 app.run_polling()
