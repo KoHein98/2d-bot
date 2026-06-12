@@ -3,12 +3,11 @@ from telegram.ext import Application, MessageHandler, ContextTypes, filters
 import os
 import re
 
-# 🔑 Bot Token (environment variable)
 TOKEN = os.getenv("BOT_TOKEN")
 
 
 # =========================
-# 📊 2D CALCULATOR LOGIC
+# 🧠 SMART PARSER ENGINE
 # =========================
 def calc(text: str):
     total = 0
@@ -19,50 +18,54 @@ def calc(text: str):
             continue
 
         # =========================
-        # 🔴 အပူး (00-99 = 10 pairs)
+        # 💰 extract amount (last number in line)
         # =========================
-        if "အပူး" in line:
-            nums = re.findall(r"\d+", line)
-            if nums:
-                amount = int(nums[0])
-                total += amount * 10
+        amounts = re.findall(r"\d+", line)
+        if not amounts:
+            continue
+
+        amount = int(amounts[-1])
+
+        # remove amount from line
+        expr = line.replace(amounts[-1], "").strip()
+
+        # normalize separators
+        expr = expr.replace(",", " ").replace(".", " ")
+        tokens = expr.split()
+
+        # =========================
+        # 🔵 CASE 1: R MODE
+        # =========================
+        if "R" in expr.upper():
+            pairs = 0
+
+            for t in tokens:
+                t = t.replace("R", "").strip()
+
+                if t.isdigit():
+                    # each R number gives reverse pair = 2
+                    pairs += 2
+
+            total += pairs * amount
             continue
 
         # =========================
-        # 🟡 ခွေ (e.g. 789 = 6 pairs)
+        # 🟡 CASE 2: NORMAL / APUE / CHOE
         # =========================
-        if "ခွေ" in line:
-            nums = re.findall(r"\d+", line)
-            if len(nums) >= 2:
-                wheel = nums[0]
-                amount = int(nums[1])
+        nums = [t for t in tokens if t.isdigit()]
 
-                pairs = len(set(
-                    wheel[i] + wheel[j]
-                    for i in range(len(wheel))
-                    for j in range(len(wheel))
-                    if i != j
-                ))
+        n = len(nums)
 
-                total += pairs * amount
+        if n == 0:
             continue
 
-        # =========================
-        # 🔵 Reverse (R)
-        # =========================
-        if "R" in line.upper():
-            nums = re.findall(r"\d+", line)
-            if len(nums) >= 2:
-                amount = int(nums[-1])
-                total += amount * 2
-            continue
+        # 2-digit combinations logic
+        if n == 1:
+            pairs = 1
+        else:
+            pairs = n * (n - 1)
 
-        # =========================
-        # ⚪ Normal (52 20000)
-        # =========================
-        nums = re.findall(r"\d+", line)
-        if len(nums) >= 2:
-            total += int(nums[-1])
+        total += pairs * amount
 
     return total
 
@@ -74,17 +77,14 @@ async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     total = calc(text)
 
-    await update.message.reply_text(
-        f"📊 Total = {total:,} MMK"
-    )
+    await update.message.reply_text(f"📊 Total = {total:,} MMK")
 
 
 # =========================
-# 🚀 START BOT
+# 🚀 RUN BOT
 # =========================
 app = Application.builder().token(TOKEN).build()
-
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handler))
 
-print("Bot is running...")
+print("🚀 Smart 2D Bot Running...")
 app.run_polling()
