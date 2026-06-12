@@ -3,11 +3,14 @@ from telegram.ext import Application, MessageHandler, ContextTypes, filters
 import os
 import re
 
+# =========================
+# 🔑 TOKEN
+# =========================
 TOKEN = os.getenv("BOT_TOKEN")
 
 
 # =========================
-# 🧠 FINAL CALCULATOR ENGINE
+# 🧠 MAIN CALCULATOR
 # =========================
 def calc(text: str):
     total = 0
@@ -32,14 +35,14 @@ def calc(text: str):
         tokens = expr.split()
 
         # =========================
-        # 🔴 အပူး (00-99 = 10 pairs)
+        # 🔴 အပူး
         # =========================
         if "အပူး" in line:
             total += 10 * amount
             continue
 
         # =========================
-        # 🟣 ခွေပူး (n² rule)
+        # 🟣 ခွေပူး (n²)
         # =========================
         if "ခွေပူး" in line:
             digits = "".join(re.findall(r"\d", line.replace("ခွေပူး", "")))
@@ -49,27 +52,25 @@ def calc(text: str):
             continue
 
         # =========================
-        # 🟢 ခွေ (n(n-1) rule)  🔥 FIXED (NO OVERLAP)
+        # 🟢 ခွေ (n(n-1))
         # =========================
         if "ခွေ" in line and "ခွေပူး" not in line:
             digits = "".join(re.findall(r"\d", line.replace("ခွေ", "")))
             n = len(digits)
 
-            if n >= 2:
-                total += (n * (n - 1)) * amount
+            total += (n * (n - 1)) * amount
             continue
 
         # =========================
-        # 🔵 R CASE (safe)
+        # 🔵 R CASE
         # =========================
         if "R" in line.upper():
             r_numbers = [t for t in tokens if t.isdigit()]
-
             total += len(r_numbers) * 2 * amount
             continue
 
         # =========================
-        # 🟡 NORMAL CASE
+        # 🟡 NORMAL
         # =========================
         nums_only = [t for t in tokens if t.isdigit()]
         total += len(nums_only) * amount
@@ -78,7 +79,7 @@ def calc(text: str):
 
 
 # =========================
-# 🤖 HANDLER
+# 🤖 TELEGRAM HANDLER
 # =========================
 async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
@@ -93,5 +94,5 @@ async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 app = Application.builder().token(TOKEN).build()
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handler))
 
-print("🚀 2D Bot Running (FINAL FIXED VERSION)")
+print("🚀 2D Bot Running (FINAL VERSION)")
 app.run_polling()
