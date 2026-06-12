@@ -3,14 +3,11 @@ from telegram.ext import Application, MessageHandler, ContextTypes, filters
 import os
 import re
 
-# =========================
-# 🔑 BOT TOKEN
-# =========================
 TOKEN = os.getenv("BOT_TOKEN")
 
 
 # =========================
-# 🧠 2D CALCULATOR ENGINE
+# 🧠 FINAL CALCULATOR ENGINE
 # =========================
 def calc(text: str):
     total = 0
@@ -52,17 +49,18 @@ def calc(text: str):
             continue
 
         # =========================
-        # 🟢 ခွေ (n(n-1) rule)
+        # 🟢 ခွေ (n(n-1) rule)  🔥 FIXED (NO OVERLAP)
         # =========================
-        if "ခွေ" in line:
+        if "ခွေ" in line and "ခွေပူး" not in line:
             digits = "".join(re.findall(r"\d", line.replace("ခွေ", "")))
             n = len(digits)
 
-            total += (n * (n - 1)) * amount
+            if n >= 2:
+                total += (n * (n - 1)) * amount
             continue
 
         # =========================
-        # 🔵 R CASE
+        # 🔵 R CASE (safe)
         # =========================
         if "R" in line.upper():
             r_numbers = [t for t in tokens if t.isdigit()]
@@ -80,24 +78,20 @@ def calc(text: str):
 
 
 # =========================
-# 🤖 TELEGRAM HANDLER
+# 🤖 HANDLER
 # =========================
 async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
-
     total = calc(text)
 
-    await update.message.reply_text(
-        f"📊 Total = {total:,} MMK"
-    )
+    await update.message.reply_text(f"📊 Total = {total:,} MMK")
 
 
 # =========================
 # 🚀 RUN BOT
 # =========================
 app = Application.builder().token(TOKEN).build()
-
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handler))
 
-print("🚀 2D Bot is running...")
+print("🚀 2D Bot Running (FINAL FIXED VERSION)")
 app.run_polling()
