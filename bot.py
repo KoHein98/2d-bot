@@ -12,7 +12,7 @@ data_store = {}
 
 
 # =========================
-# 🧠 PARSER (STRICT)
+# 🧠 PARSER
 # =========================
 def parse_line(line):
     line = line.strip()
@@ -25,77 +25,21 @@ def parse_line(line):
 
     amount = int(nums[-1])
 
-    # remove ONLY last number
+    # remove last number only
     clean = line[::-1].replace(nums[-1][::-1], "", 1)[::-1].strip()
 
+    # extract numbers inside text
     numbers = re.findall(r"\d+", clean)
 
     return {
-        "clean": clean,
+        "text": line,
         "amount": amount,
         "numbers": numbers
     }
 
 
 # =========================
-# 🧠 CALCULATOR (FULL RULES)
-# =========================
-def calc(bets):
-    cat = {
-        "khwe": 0,
-        "khwepue": 0,
-        "apue": 0,
-        "r": 0,
-        "normal": 0
-    }
-
-    total = 0
-
-    for b in bets:
-        line = b["clean"]
-        amount = b["amount"]
-
-        # 🔴 အပူး
-        if "အပူး" in line:
-            val = 10 * amount
-            cat["apue"] += val
-            total += val
-            continue
-
-        # 🟣 ခွေပူး (n²)
-        if "ခွေပူး" in line:
-            n = len(b["numbers"])
-            val = (n * n) * amount
-            cat["khwepue"] += val
-            total += val
-            continue
-
-        # 🟢 ခွေ (n(n-1))
-        if "ခွေ" in line and "ခွေပူး" not in line:
-            n = len(b["numbers"])
-            val = (n * (n - 1)) * amount
-            cat["khwe"] += val
-            total += val
-            continue
-
-        # 🔵 R
-        if "R" in line.upper():
-            nums_r = re.findall(r"\d+", line)
-            val = len(nums_r) * 2 * amount
-            cat["r"] += val
-            total += val
-            continue
-
-        # 🟡 NORMAL
-        val = len(b["numbers"]) * amount
-        cat["normal"] += val
-        total += val
-
-    return cat, total
-
-
-# =========================
-# 🤖 MESSAGE HANDLER
+# 🤖 STORE MESSAGES
 # =========================
 async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
@@ -108,54 +52,52 @@ async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if parsed:
             data_store[chat_id].append(parsed)
 
-    cat, total = calc(data_store[chat_id])
-
-    await update.message.reply_text(
-        "📊 Added ✔\n"
-        f"💰 Current Total = {total:,}\n"
-        "👉 /total <number> ရိုက်ပြီးရှာနိုင်ပါတယ်"
-    )
+    await update.message.reply_text("✔ Saved")
 
 
 # =========================
-# 🔎 SMART FILTER TOTAL (EXACT MATCH FIXED)
+# 🔎 FILTER + TOTAL
 # =========================
 async def smart_total(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     bets = data_store.get(chat_id, [])
 
-    # 👉 FULL TOTAL
+    # =========================
+    # FULL TOTAL
+    # =========================
     if not context.args:
-        cat, total = calc(bets)
+        total = sum(b["amount"] for b in bets)
         await update.message.reply_text(f"💰 TOTAL = {total:,}")
         return
 
     query = context.args[0]
 
     filtered = []
+    total = 0
+
+    # =========================
+    # EXACT MATCH FILTER
+    # =========================
     for b in bets:
-        # ✅ EXACT MATCH ONLY (FIXED BUG)
         if query in b["numbers"]:
             filtered.append(b)
+            total += b["amount"]
 
-    cat, total = calc(filtered)
+    if not filtered:
+        await update.message.reply_text("❌ No match found")
+        return
 
-    # 💸 stake (optional simple calc)
-    stake = sum(b["amount"] * len(b["numbers"]) for b in filtered)
+    # =========================
+    # OUTPUT
+    # =========================
+    msg = f"📊 Filter: {query}\n\n"
 
-    p = total - stake
+    for b in filtered:
+        msg += f"{b['text']} → {b['amount']:,}\n"
 
-    await update.message.reply_text(
-        f"📊 Number {query} Report\n\n"
-        f"🟢 ခွေ = {cat['khwe']:,}\n"
-        f"🟣 ခွေပူး = {cat['khwepue']:,}\n"
-        f"🔴 အပူး = {cat['apue']:,}\n"
-        f"🔵 R = {cat['r']:,}\n"
-        f"🟡 NORMAL = {cat['normal']:,}\n\n"
-        f"💰 Total = {total:,}\n"
-        f"💸 Stake = {stake:,}\n"
-        f"📈 P = {p:,}"
-    )
+    msg += f"\n💰 Total = {total:,}"
+
+    await update.message.reply_text(msg)
 
 
 # =========================
@@ -166,5 +108,5 @@ app = Application.builder().token(TOKEN).build()
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handler))
 app.add_handler(CommandHandler("total", smart_total))
 
-print("🚀 FINAL SMART 2D BOT RUNNING...")
+print("🚀 CLEAN FILTER BOT RUNNING...")
 app.run_polling()
