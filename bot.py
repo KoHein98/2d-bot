@@ -9,35 +9,26 @@ def calc(text: str):
     import re
 
     total = 0
+    lines = text.split("\n")
 
-    # 1️⃣ normalize: convert multiple dots to single space safely
-    text = re.sub(r"\.+", " ", text)
+    for line in lines:
+        line = line.strip()
+        if not line:  # လိုင်းက အလွတ်ဖြစ်နေရင် ကျော်မယ်
+            continue
 
-    # 2️⃣ keep only usable characters
-    text = re.sub(r"[^\dR\s]", " ", text)
+        # 1. R format ကို အရင်စစ်မယ် (ဥပမာ - "5 R 10" သို့မဟုတ် "5R10")
+        m = re.search(r"(\d+)\s*R\s*(\d+)", line)
+        if m:
+            total += int(m.group(1)) * int(m.group(2))
+            continue  # ကိုက်ညီမှုရှိသွားရင် အောက်က normal format ကို ထပ်မစစ်တော့ဘဲ ကျော်မယ်
 
-    # 3️⃣ R format ONLY strict
-    r_items = re.findall(r"\b(\d+)\s*R\s*(\d+)\b", text)
-    for nums, amt in r_items:
-        total += int(nums) * int(amt)
-
-    # 4️⃣ remove R parts before next parse
-    text = re.sub(r"\b\d+\s*R\s*\d+\b", " ", text)
-
-    # 5️⃣ STRICT normal format (must be clean pairs only)
-    plain = re.findall(r"\b(\d{1,5})\s+(\d{3,})\b", text)
-    for nums, amt in plain:
-        total += int(nums) * int(amt)
-
-    # 6️⃣ အပူး
-    apu = re.findall(r"အပူး\s*(\d+)", text)
-    for a in apu:
-        total += 10 * int(a)
+        # 2. Normal format ကို စစ်မယ် (ဥပမာ - "5 10")
+        m = re.search(r"(\d+)\s+(\d+)", line)
+        if m:
+            total += int(m.group(1)) * int(m.group(2))
 
     return total
-async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
-    total = calc(text)
+
 
     await update.message.reply_text(f"📊 Total = {total:,} MMK")
 
