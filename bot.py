@@ -1,82 +1,64 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
+from telegram import Update
+from telegram.ext import Application, MessageHandler, ContextTypes, filters
 import os
+import re
 
 TOKEN = os.getenv("BOT_TOKEN")
 
-user_data = {}
+
+# reverse helper
+def reverse_num(n: str):
+    return n[::-1]
 
 
-# ---------------- START MENU ----------------
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        [InlineKeyboardButton("➕ Add 2D Entry", callback_data="add")],
-        [InlineKeyboardButton("📊 Calculate Total", callback_data="calc")],
-        [InlineKeyboardButton("🧹 Reset", callback_data="reset")]
-    ]
+def calc(text: str):
+    total = 0
 
-    await update.message.reply_text(
-        "🎰 2D Betting Bot\nChoose option:",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+    # split lines first
+    lines = text.split()
 
+    i = 0
+    while i < len(lines):
+        part = lines[i]
 
-# ---------------- BUTTON HANDLER ----------------
-async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
+        # clean dots
+        part = part.replace(".", " ")
 
-    user_id = query.from_user.id
+        # R case
+        if "R" in part:
+            # handle cases like 52R20000 or 52 R 20000
+            match = re.findall(r"(\d+)", part)
+            if len(match) >= 2:
+                nums_part = match[:-1]
+                amount = int(match[-1])
 
-    if user_id not in user_data:
-        user_data[user_id] = []
+                count = 0
 
-    if query.data == "add":
-        await query.message.reply_text(
-            "Send format:\n👉 17 10000\n👉 17 R 10000"
-        )
+                for num in nums_part:
+                    count += 1  # original
+                    count += 1  # reverse
 
-    elif query.data == "calc":
-        total = 0
+                total += count * amount
 
-        for item in user_data.get(user_id, []):
-            parts = item.split()
+        else:
+            # normal number case (flat)
+            match = re.findall(r"\d+", part)
+            if len(match) == 1:
+                total += int(match[0])
 
-            if "R" in parts:
-                nums = int(parts[0])
-                amt = int(parts[2])
-            else:
-                nums = int(parts[0])
-                amt = int(parts[1])
+        i += 1
 
-            if 0 <= nums <= 99:
-                total += nums * amt
-
-        await query.message.reply_text(f"📊 Total = {total:,} MMK")
-
-    elif query.data == "reset":
-        user_data[user_id] = []
-        await query.message.reply_text("🧹 Reset done!")
+    return total
 
 
-# ---------------- TEXT INPUT ----------------
-async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.message.from_user.id
+async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
+    total = calc(text)
 
-    if user_id not in user_data:
-        user_data[user_id] = []
-
-    user_data[user_id].append(text)
-
-    await update.message.reply_text("✅ Added!")
+    await update.message.reply_text(f"📊 Total = {total:,} MMK")
 
 
-# ---------------- MAIN ----------------
 app = Application.builder().token(TOKEN).build()
-
-app.add_handler(CommandHandler("start", start))
-app.add_handler(CallbackQueryHandler(button))
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handler))
 
 app.run_polling()
