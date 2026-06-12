@@ -5,14 +5,11 @@ import re
 
 TOKEN = os.getenv("BOT_TOKEN")
 
-# =========================
-# 🧠 MEMORY STORE
-# =========================
 data_store = {}
 
 
 # =========================
-# 🧠 CALCULATOR
+# 🧠 CALC
 # =========================
 def calc(text: str):
     total = 0
@@ -58,6 +55,26 @@ def calc(text: str):
 
 
 # =========================
+# 📌 COMMAND: TOTAL
+# =========================
+async def total_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    total = data_store.get(chat_id, 0)
+
+    await update.message.reply_text(f"💰 TOTAL = {total:,} MMK")
+
+
+# =========================
+# 📌 COMMAND: RESET
+# =========================
+async def reset_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    data_store[chat_id] = 0
+
+    await update.message.reply_text("♻️ RESET DONE")
+
+
+# =========================
 # 🤖 MESSAGE HANDLER
 # =========================
 async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -70,28 +87,8 @@ async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data_store[chat_id] += total
 
     await update.message.reply_text(
-        f"📊 Batch Total = {total:,}\n👉 /total ရိုက်ပြီးစုကြည့်နိုင်ပါတယ်"
+        f"📊 Batch Total = {total:,}\n👉 /total ရိုက်ကြည့်ပါ"
     )
-
-
-# =========================
-# 📌 TOTAL COMMAND
-# =========================
-async def show_total(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-    total = data_store.get(chat_id, 0)
-
-    await update.message.reply_text(f"💰 TOTAL = {total:,} MMK")
-
-
-# =========================
-# 🔄 RESET COMMAND
-# =========================
-async def reset_total(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-    data_store[chat_id] = 0
-
-    await update.message.reply_text("♻️ TOTAL RESET DONE")
 
 
 # =========================
@@ -99,9 +96,11 @@ async def reset_total(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # =========================
 app = Application.builder().token(TOKEN).build()
 
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handler))
-app.add_handler(CommandHandler("total", show_total))
-app.add_handler(CommandHandler("reset", reset_total))
+# ⚠️ IMPORTANT ORDER (COMMAND FIRST)
+app.add_handler(CommandHandler("total", total_cmd))
+app.add_handler(CommandHandler("reset", reset_cmd))
 
-print("🚀 TOTAL COMMAND BOT RUNNING...")
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handler))
+
+print("🚀 FIXED COMMAND BOT RUNNING...")
 app.run_polling()
