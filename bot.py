@@ -5,34 +5,43 @@ import re
 
 TOKEN = os.getenv("BOT_TOKEN")
 
-
 def calc(text: str):
+    import re
+
     total = 0
 
-    # split lines only (NO guessing, NO messy parsing)
     lines = text.split("\n")
 
     for line in lines:
         line = line.strip()
 
-        # R format → 50 R 10000
-        m = re.match(r"^(\d+)\s*R\s*(\d+)$", line)
+        # 2D R format only (00-99 accepted)
+        m = re.match(r"^(\d{1,2})\s*R\s*(\d+)$", line)
         if m:
-            total += int(m.group(1)) * int(m.group(2))
+            nums = int(m.group(1))
+            amt = int(m.group(2))
+
+            if 0 <= nums <= 99:
+                total += nums * amt
             continue
 
-        # normal format → 2 10000
-        m = re.match(r"^(\d+)\s+(\d+)$", line)
+        # normal 2D format (00-99)
+        m = re.match(r"^(\d{1,2})\s+(\d+)$", line)
         if m:
-            total += int(m.group(1)) * int(m.group(2))
+            nums = int(m.group(1))
+            amt = int(m.group(2))
+
+            if 0 <= nums <= 99:
+                total += nums * amt
             continue
 
-        # အပူး → အပူး 5
+        # အပူး
         m = re.match(r"^အပူး\s*(\d+)$", line)
         if m:
             total += 10 * int(m.group(1))
 
     return total
+
 
 
 async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
