@@ -6,13 +6,13 @@ import re
 TOKEN = os.getenv("BOT_TOKEN")
 
 # =========================
-# 🧠 MEMORY
+# 🧠 STORE RAW TEXT ONLY
 # =========================
 data_store = {}
 
 
 # =========================
-# 🧹 CLEAN TEXT
+# 🧹 CLEAN LINE
 # =========================
 def clean_text(text):
     text = text.replace("..", " ")
@@ -22,7 +22,7 @@ def clean_text(text):
 
 
 # =========================
-# 🧠 PARSE LINE (FIXED)
+# 🧠 PARSE MESSAGE
 # =========================
 def parse_line(line):
     line = clean_text(line)
@@ -33,22 +33,19 @@ def parse_line(line):
 
     amount = int(nums[-1])
 
-    # remove last number only
-    clean = line[::-1].replace(nums[-1][::-1], "", 1)[::-1].strip()
+    # remove last number (stake)
+    main_part = line[::-1].replace(nums[-1][::-1], "", 1)[::-1].strip()
 
-    # extract all numbers except last
-    numbers = re.findall(r"\d+", clean)
+    numbers = re.findall(r"\d+", main_part)
 
     return {
-        "text": line,
-        "amount": amount,
-        "clean": clean,
-        "numbers": numbers
+        "numbers": numbers,
+        "amount": amount
     }
 
 
 # =========================
-# 🤖 STORE + MESSAGE TOTAL
+# 🤖 MESSAGE HANDLER
 # =========================
 async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
@@ -64,51 +61,46 @@ async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parsed_lines.append(parsed)
             data_store[chat_id].append(parsed)
 
-    total = sum(b["amount"] for b in parsed_lines)
-
-    await update.message.reply_text(
-        f"📊 Message Total = {total:,}\n✔ Saved"
-    )
+    await update.message.reply_text("✔ Saved")
 
 
 # =========================
-# 🔎 TOTAL / FILTER COMMAND
+# 🔎 FILTER: NUMBER → AMOUNT
 # =========================
-async def smart_total(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def map_number(data, query):
+    results = []
+    total = 0
+
+    for item in data:
+        if query in item["numbers"]:
+            results.append(f"{query} → {item['amount']:,}")
+            total += item["amount"]
+
+    return results, total
+
+
+# =========================
+# 📌 /total COMMAND
+# =========================
+async def total_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
-    bets = data_store.get(chat_id, [])
+    data = data_store.get(chat_id, [])
 
-    # =========================
-    # 🟢 ALL TOTAL
-    # =========================
     if not context.args:
-        total = sum(b["amount"] for b in bets)
-        await update.message.reply_text(f"💰 ALL TOTAL = {total:,}")
+        await update.message.reply_text("❌ Please enter number (/total 11)")
         return
 
     query = context.args[0]
 
-    filtered = []
-    total = 0
+    results, total = map_number(data, query)
 
-    # =========================
-    # 🔎 EXACT FILTER (FIXED)
-    # =========================
-    for b in bets:
-        if query in b["numbers"]:
-            filtered.append(b)
-            total += b["amount"]
-
-    if not filtered:
+    if not results:
         await update.message.reply_text("❌ No match found")
         return
 
-    msg = f"📊 Filter: {query}\n\n"
-
-    for b in filtered:
-        msg += f"{b['text']} → {b['amount']:,}\n"
-
-    msg += f"\n💰 Total = {total:,}"
+    msg = "📊 RESULT\n\n"
+    msg += "\n".join(results)
+    msg += f"\n\n💰 Total = {total:,}"
 
     await update.message.reply_text(msg)
 
@@ -119,7 +111,7 @@ async def smart_total(update: Update, context: ContextTypes.DEFAULT_TYPE):
 app = Application.builder().token(TOKEN).build()
 
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handler))
-app.add_handler(CommandHandler("total", smart_total))
+app.add_handler(CommandHandler("total", total_cmd))
 
-print("🚀 FINAL STABLE BOT RUNNING...")
+print("🚀 FINAL NUMBER MAPPING BOT RUNNING...")
 app.run_polling()
