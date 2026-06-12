@@ -10,24 +10,26 @@ def calc(text: str):
 
     total = 0
 
-    # 1️⃣ normalize input safely (DO NOT break numbers)
-    text = text.replace("..", " ")
+    # 1️⃣ normalize: convert multiple dots to single space safely
+    text = re.sub(r"\.+", " ", text)
+
+    # 2️⃣ keep only usable characters
     text = re.sub(r"[^\dR\s]", " ", text)
 
-    # 2️⃣ R format (50 R 10000)
-    r_items = re.findall(r"(\d+)\s*R\s*(\d+)", text)
+    # 3️⃣ R format ONLY strict
+    r_items = re.findall(r"\b(\d+)\s*R\s*(\d+)\b", text)
     for nums, amt in r_items:
         total += int(nums) * int(amt)
 
-    # 3️⃣ remove R parts (avoid double count)
-    text = re.sub(r"\d+\s*R\s*\d+", " ", text)
+    # 4️⃣ remove R parts before next parse
+    text = re.sub(r"\b\d+\s*R\s*\d+\b", " ", text)
 
-    # 4️⃣ normal format (only safe pairs)
-    plain = re.findall(r"\b(\d{1,3})\s+(\d{3,})\b", text)
+    # 5️⃣ STRICT normal format (must be clean pairs only)
+    plain = re.findall(r"\b(\d{1,5})\s+(\d{3,})\b", text)
     for nums, amt in plain:
         total += int(nums) * int(amt)
 
-    # 5️⃣ အပူး
+    # 6️⃣ အပူး
     apu = re.findall(r"အပူး\s*(\d+)", text)
     for a in apu:
         total += 10 * int(a)
