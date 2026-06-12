@@ -4,13 +4,13 @@ import os
 import re
 
 # =========================
-# 🔑 TOKEN
+# 🔑 BOT TOKEN
 # =========================
 TOKEN = os.getenv("BOT_TOKEN")
 
 
 # =========================
-# 🧠 MAIN CALCULATOR
+# 🧠 CLEAN CALCULATOR ENGINE
 # =========================
 def calc(text: str):
     total = 0
@@ -20,59 +20,64 @@ def calc(text: str):
         if not line:
             continue
 
-        # 🧹 CLEAN INPUT
+        # =========================
+        # 🧹 NORMALIZE INPUT
+        # =========================
         line = line.replace(",", " ")
         line = re.sub(r"\.+", " ", line)
+        line = re.sub(r"\s+", " ", line)
 
+        # 💰 extract numbers
         nums = re.findall(r"\d+", line)
         if not nums:
             continue
 
         amount = int(nums[-1])
 
-        expr = line.replace(nums[-1], "")
-        expr = expr.replace("R", " R ")
-        tokens = expr.split()
+        # remove ONLY last amount safely
+        line_clean = line[::-1].replace(nums[-1][::-1], "", 1)[::-1]
 
         # =========================
-        # 🔴 အပူး
+        # 🔴 အပူး (00–99)
         # =========================
-        if "အပူး" in line:
+        if "အပူး" in line_clean:
             total += 10 * amount
             continue
 
         # =========================
-        # 🟣 ခွေပူး (n²)
+        # 🟣 ခွေပူး (n² rule)
         # =========================
-        if "ခွေပူး" in line:
-            digits = "".join(re.findall(r"\d", line.replace("ခွေပူး", "")))
+        if "ခွေပူး" in line_clean:
+            digits = "".join(re.findall(r"\d", line_clean))
             n = len(digits)
 
             total += (n * n) * amount
             continue
 
         # =========================
-        # 🟢 ခွေ (n(n-1))
+        # 🟢 ခွေ (n(n-1) rule)
         # =========================
-        if "ခွေ" in line and "ခွေပူး" not in line:
-            digits = "".join(re.findall(r"\d", line.replace("ခွေ", "")))
+        if "ခွေ" in line_clean and "ခွေပူး" not in line_clean:
+            digits = "".join(re.findall(r"\d", line_clean))
             n = len(digits)
 
-            total += (n * (n - 1)) * amount
+            if n >= 2:
+                total += (n * (n - 1)) * amount
+
             continue
 
         # =========================
         # 🔵 R CASE
         # =========================
-        if "R" in line.upper():
-            r_numbers = [t for t in tokens if t.isdigit()]
+        if "R" in line_clean.upper():
+            r_numbers = re.findall(r"\d+", line_clean)
             total += len(r_numbers) * 2 * amount
             continue
 
         # =========================
-        # 🟡 NORMAL
+        # 🟡 NORMAL CASE
         # =========================
-        nums_only = [t for t in tokens if t.isdigit()]
+        nums_only = re.findall(r"\d+", line_clean)
         total += len(nums_only) * amount
 
     return total
@@ -83,6 +88,7 @@ def calc(text: str):
 # =========================
 async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
+
     total = calc(text)
 
     await update.message.reply_text(f"📊 Total = {total:,} MMK")
@@ -94,5 +100,5 @@ async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 app = Application.builder().token(TOKEN).build()
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handler))
 
-print("🚀 2D Bot Running (FINAL VERSION)")
+print("🚀 2D Bot Running (FINAL STABLE VERSION)")
 app.run_polling()
