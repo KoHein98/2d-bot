@@ -3,11 +3,14 @@ from telegram.ext import Application, MessageHandler, ContextTypes, filters
 import os
 import re
 
+# =========================
+# 🔑 BOT TOKEN
+# =========================
 TOKEN = os.getenv("BOT_TOKEN")
 
 
 # =========================
-# 🧠 EXACT 2D LOGIC (FIXED)
+# 🧠 2D CALCULATOR ENGINE
 # =========================
 def calc(text: str):
     total = 0
@@ -17,7 +20,10 @@ def calc(text: str):
         if not line:
             continue
 
-        # 💰 amount (last number)
+        # 🧹 CLEAN INPUT
+        line = line.replace(",", " ")
+        line = re.sub(r"\.+", " ", line)
+
         nums = re.findall(r"\d+", line)
         if not nums:
             continue
@@ -25,62 +31,73 @@ def calc(text: str):
         amount = int(nums[-1])
 
         expr = line.replace(nums[-1], "")
-        expr = expr.replace(".", " ").replace(",", " ")
+        expr = expr.replace("R", " R ")
         tokens = expr.split()
+
+        # =========================
+        # 🔴 အပူး (00-99 = 10 pairs)
+        # =========================
+        if "အပူး" in line:
+            total += 10 * amount
+            continue
+
+        # =========================
+        # 🟣 ခွေပူး (n² rule)
+        # =========================
+        if "ခွေပူး" in line:
+            digits = "".join(re.findall(r"\d", line.replace("ခွေပူး", "")))
+            n = len(digits)
+
+            total += (n * n) * amount
+            continue
+
+        # =========================
+        # 🟢 ခွေ (n(n-1) rule)
+        # =========================
+        if "ခွေ" in line:
+            digits = "".join(re.findall(r"\d", line.replace("ခွေ", "")))
+            n = len(digits)
+
+            total += (n * (n - 1)) * amount
+            continue
 
         # =========================
         # 🔵 R CASE
         # =========================
-        if "R" in expr.upper():
-            r_numbers = []
+        if "R" in line.upper():
+            r_numbers = [t for t in tokens if t.isdigit()]
 
-            for t in tokens:
-                t = t.replace("R", "")
-                if t.isdigit():
-                    r_numbers.append(t)
-
-            # each R number = 2 directions
-            pairs = len(r_numbers) * 2
-            total += pairs * amount
+            total += len(r_numbers) * 2 * amount
             continue
 
         # =========================
-        # 🟡 NORMAL / APUE / CHOE
+        # 🟡 NORMAL CASE
         # =========================
         nums_only = [t for t in tokens if t.isdigit()]
-
-        n = len(nums_only)
-
-        if n == 0:
-            continue
-
-        # IMPORTANT FIX:
-        # 2 numbers → always 2 pairs (A↔B + B↔A)
-        if n == 2:
-            pairs = 2
-        else:
-            pairs = n * (n - 1)
-
-        total += pairs * amount
+        total += len(nums_only) * amount
 
     return total
 
 
 # =========================
-# 🤖 HANDLER
+# 🤖 TELEGRAM HANDLER
 # =========================
 async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
+
     total = calc(text)
 
-    await update.message.reply_text(f"📊 Total = {total:,} MMK")
+    await update.message.reply_text(
+        f"📊 Total = {total:,} MMK"
+    )
 
 
 # =========================
-# 🚀 RUN
+# 🚀 RUN BOT
 # =========================
 app = Application.builder().token(TOKEN).build()
+
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handler))
 
-print("✅ 2D Bot Running...")
+print("🚀 2D Bot is running...")
 app.run_polling()
