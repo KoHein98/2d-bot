@@ -12,25 +12,37 @@ data_store = {}
 
 
 # =========================
-# 🧠 PARSER
+# 🧹 CLEAN TEXT
+# =========================
+def clean_text(text):
+    text = text.replace("..", " ")
+    text = text.replace(".", " ")
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
+
+
+# =========================
+# 🧠 PARSE LINE (FIXED)
 # =========================
 def parse_line(line):
-    line = line.strip()
-    line = re.sub(r"\.+", " ", line)
-    line = re.sub(r"\s+", " ", line)
+    line = clean_text(line)
 
     nums = re.findall(r"\d+", line)
     if not nums:
         return None
 
     amount = int(nums[-1])
+
+    # remove last number only
     clean = line[::-1].replace(nums[-1][::-1], "", 1)[::-1].strip()
 
+    # extract all numbers except last
     numbers = re.findall(r"\d+", clean)
 
     return {
         "text": line,
         "amount": amount,
+        "clean": clean,
         "numbers": numbers
     }
 
@@ -52,16 +64,15 @@ async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parsed_lines.append(parsed)
             data_store[chat_id].append(parsed)
 
-    # message total
-    msg_total = sum(b["amount"] for b in parsed_lines)
+    total = sum(b["amount"] for b in parsed_lines)
 
     await update.message.reply_text(
-        f"📊 Message Total = {msg_total:,}\n✔ Saved"
+        f"📊 Message Total = {total:,}\n✔ Saved"
     )
 
 
 # =========================
-# 🔎 TOTAL COMMAND (ALL + FILTER)
+# 🔎 TOTAL / FILTER COMMAND
 # =========================
 async def smart_total(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
@@ -75,14 +86,14 @@ async def smart_total(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"💰 ALL TOTAL = {total:,}")
         return
 
-    # =========================
-    # 🟡 FILTER TOTAL
-    # =========================
     query = context.args[0]
 
     filtered = []
     total = 0
 
+    # =========================
+    # 🔎 EXACT FILTER (FIXED)
+    # =========================
     for b in bets:
         if query in b["numbers"]:
             filtered.append(b)
@@ -110,5 +121,5 @@ app = Application.builder().token(TOKEN).build()
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handler))
 app.add_handler(CommandHandler("total", smart_total))
 
-print("🚀 FINAL ALL-TOTAL BOT RUNNING...")
+print("🚀 FINAL STABLE BOT RUNNING...")
 app.run_polling()
