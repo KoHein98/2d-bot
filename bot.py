@@ -8,6 +8,20 @@ TOKEN = os.getenv("BOT_TOKEN")
 def calc(text: str):
     total = 0
 
+    r_items = re.findall(r"(\d{2})\s*R\s*(\d+)", text)
+    for nums, amt in r_items:
+        total += int(nums) * int(amt)
+
+    plain = re.findall(r"(\d{2})\s+(\d+)", text)
+    for nums, amt in plain:
+        total += int(nums) * int(amt)
+
+    apu = re.findall(r"အပူး\s*(\d+)", text)
+    for a in apu:
+        total += 10 * int(a)
+
+    return total
+
     # R format (17 R 20000)
     r_items = re.findall(r"(\d{2})\s*R\s*(\d+)", text)
     for num, amt in r_items:
