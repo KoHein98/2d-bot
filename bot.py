@@ -1,18 +1,23 @@
 from telegram import Update
-from telegram.ext import Application, MessageHandler, ContextTypes, filters
+from telegram.ext import Application, MessageHandler, CommandHandler, ContextTypes, filters
 import os
 import re
 
-# =========================
-# 🔑 BOT TOKEN
-# =========================
 TOKEN = os.getenv("BOT_TOKEN")
 
 
 # =========================
-# 🧠 CLEAN CALCULATOR ENGINE
+# 🧠 CALCULATOR (NO MEMORY)
 # =========================
 def calc(text: str):
+    cat = {
+        "khwe": 0,
+        "khwepue": 0,
+        "apue": 0,
+        "r": 0,
+        "normal": 0
+    }
+
     total = 0
 
     for line in text.splitlines():
@@ -20,78 +25,76 @@ def calc(text: str):
         if not line:
             continue
 
-        # =========================
-        # 🧹 NORMALIZE INPUT
-        # =========================
-        line = line.replace(",", " ")
         line = re.sub(r"\.+", " ", line)
         line = re.sub(r"\s+", " ", line)
 
-        # 💰 extract numbers
         nums = re.findall(r"\d+", line)
         if not nums:
             continue
 
         amount = int(nums[-1])
-
-        # remove ONLY last amount safely
         line_clean = line[::-1].replace(nums[-1][::-1], "", 1)[::-1]
 
-        # =========================
-        # 🔴 အပူး (00–99)
-        # =========================
+        # 🔴 အပူး
         if "အပူး" in line_clean:
-            total += 10 * amount
+            val = 10 * amount
+            cat["apue"] += val
+            total += val
             continue
 
-        # =========================
-        # 🟣 ခွေပူး (n² rule)
-        # =========================
+        # 🟣 ခွေပူး
         if "ခွေပူး" in line_clean:
             digits = "".join(re.findall(r"\d", line_clean))
             n = len(digits)
-
-            total += (n * n) * amount
+            val = (n * n) * amount
+            cat["khwepue"] += val
+            total += val
             continue
 
-        # =========================
-        # 🟢 ခွေ (n(n-1) rule)
-        # =========================
+        # 🟢 ခွေ
         if "ခွေ" in line_clean and "ခွေပူး" not in line_clean:
             digits = "".join(re.findall(r"\d", line_clean))
             n = len(digits)
-
-            if n >= 2:
-                total += (n * (n - 1)) * amount
-
+            val = (n * (n - 1)) * amount
+            cat["khwe"] += val
+            total += val
             continue
 
-        # =========================
-        # 🔵 R CASE
-        # =========================
+        # 🔵 R
         if "R" in line_clean.upper():
-            r_numbers = re.findall(r"\d+", line_clean)
-            total += len(r_numbers) * 2 * amount
+            nums_r = re.findall(r"\d+", line_clean)
+            val = len(nums_r) * 2 * amount
+            cat["r"] += val
+            total += val
             continue
 
-        # =========================
-        # 🟡 NORMAL CASE
-        # =========================
+        # 🟡 NORMAL
         nums_only = re.findall(r"\d+", line_clean)
-        total += len(nums_only) * amount
+        val = len(nums_only) * amount
+        cat["normal"] += val
+        total += val
 
-    return total
+    return cat, total
 
 
 # =========================
-# 🤖 TELEGRAM HANDLER
+# 🤖 MESSAGE HANDLER
 # =========================
 async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
+    cat, total = calc(update.message.text)
 
-    total = calc(text)
+    message = (
+        "📊 *BREAKDOWN*\n\n"
+        f"🟢 ခွေ = {cat['khwe']:,}\n"
+        f"🟣 ခွေပူး = {cat['khwepue']:,}\n"
+        f"🔴 အပူး = {cat['apue']:,}\n"
+        f"🔵 R = {cat['r']:,}\n"
+        f"🟡 NORMAL = {cat['normal']:,}\n"
+        f"\n➕ *Batch Total = {total:,}*\n\n"
+        "👉 ဒီ message တစ်ခါချင်းတွက်တာပဲ"
+    )
 
-    await update.message.reply_text(f"📊 Total = {total:,} MMK")
+    await update.message.reply_text(message, parse_mode="Markdown")
 
 
 # =========================
@@ -100,5 +103,5 @@ async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 app = Application.builder().token(TOKEN).build()
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handler))
 
-print("🚀 2D Bot Running (FINAL STABLE VERSION)")
+print("🚀 NO MEMORY 2D BOT RUNNING...")
 app.run_polling()
