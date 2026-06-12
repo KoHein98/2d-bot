@@ -7,7 +7,7 @@ TOKEN = os.getenv("BOT_TOKEN")
 
 
 # =========================
-# 🧠 SMART PARSER ENGINE
+# 🧠 EXACT 2D LOGIC (FIXED)
 # =========================
 def calc(text: str):
     total = 0
@@ -17,51 +17,47 @@ def calc(text: str):
         if not line:
             continue
 
-        # =========================
-        # 💰 extract amount (last number in line)
-        # =========================
-        amounts = re.findall(r"\d+", line)
-        if not amounts:
+        # 💰 amount (last number)
+        nums = re.findall(r"\d+", line)
+        if not nums:
             continue
 
-        amount = int(amounts[-1])
+        amount = int(nums[-1])
 
-        # remove amount from line
-        expr = line.replace(amounts[-1], "").strip()
-
-        # normalize separators
-        expr = expr.replace(",", " ").replace(".", " ")
+        expr = line.replace(nums[-1], "")
+        expr = expr.replace(".", " ").replace(",", " ")
         tokens = expr.split()
 
         # =========================
-        # 🔵 CASE 1: R MODE
+        # 🔵 R CASE
         # =========================
         if "R" in expr.upper():
-            pairs = 0
+            r_numbers = []
 
             for t in tokens:
-                t = t.replace("R", "").strip()
-
+                t = t.replace("R", "")
                 if t.isdigit():
-                    # each R number gives reverse pair = 2
-                    pairs += 2
+                    r_numbers.append(t)
 
+            # each R number = 2 directions
+            pairs = len(r_numbers) * 2
             total += pairs * amount
             continue
 
         # =========================
-        # 🟡 CASE 2: NORMAL / APUE / CHOE
+        # 🟡 NORMAL / APUE / CHOE
         # =========================
-        nums = [t for t in tokens if t.isdigit()]
+        nums_only = [t for t in tokens if t.isdigit()]
 
-        n = len(nums)
+        n = len(nums_only)
 
         if n == 0:
             continue
 
-        # 2-digit combinations logic
-        if n == 1:
-            pairs = 1
+        # IMPORTANT FIX:
+        # 2 numbers → always 2 pairs (A↔B + B↔A)
+        if n == 2:
+            pairs = 2
         else:
             pairs = n * (n - 1)
 
@@ -71,7 +67,7 @@ def calc(text: str):
 
 
 # =========================
-# 🤖 TELEGRAM HANDLER
+# 🤖 HANDLER
 # =========================
 async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
@@ -81,10 +77,10 @@ async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # =========================
-# 🚀 RUN BOT
+# 🚀 RUN
 # =========================
 app = Application.builder().token(TOKEN).build()
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handler))
 
-print("🚀 Smart 2D Bot Running...")
+print("✅ 2D Bot Running...")
 app.run_polling()
