@@ -10,7 +10,8 @@ def calc(text: str):
 
     total = 0
 
-    # 1️⃣ keep only digits, R, spaces
+    # 1️⃣ normalize input safely (DO NOT break numbers)
+    text = text.replace("..", " ")
     text = re.sub(r"[^\dR\s]", " ", text)
 
     # 2️⃣ R format (50 R 10000)
@@ -18,11 +19,11 @@ def calc(text: str):
     for nums, amt in r_items:
         total += int(nums) * int(amt)
 
-    # 3️⃣ remove R parts to avoid double count
+    # 3️⃣ remove R parts (avoid double count)
     text = re.sub(r"\d+\s*R\s*\d+", " ", text)
 
-    # 4️⃣ normal format (11 10000)
-    plain = re.findall(r"(\d+)\s+(\d+)", text)
+    # 4️⃣ normal format (only safe pairs)
+    plain = re.findall(r"\b(\d{1,3})\s+(\d{3,})\b", text)
     for nums, amt in plain:
         total += int(nums) * int(amt)
 
@@ -32,9 +33,6 @@ def calc(text: str):
         total += 10 * int(a)
 
     return total
-
-
-
 async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     total = calc(text)
