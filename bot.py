@@ -13,21 +13,29 @@ def calc(text: str):
 
     for line in lines:
         line = line.strip()
-        if not line:  # လိုင်းက အလွတ်ဖြစ်နေရင် ကျော်မယ်
+        if not line:
             continue
 
-        # 1. R format ကို အရင်စစ်မယ် (ဥပမာ - "5 R 10" သို့မဟုတ် "5R10")
-        m = re.search(r"(\d+)\s*R\s*(\d+)", line)
+        # 1. R (အာ) format - ဥပမာ "57 R 10000" သို့မဟုတ် "57R10000"
+        m = re.match(r"^(\d+)\s*[Rr]\s*(\d+)$", line)
         if m:
-            total += int(m.group(1)) * int(m.group(2))
-            continue  # ကိုက်ညီမှုရှိသွားရင် အောက်က normal format ကို ထပ်မစစ်တော့ဘဲ ကျော်မယ်
+            # R ပါရင် ၂ ကွက်ဖြစ်သွားတဲ့အတွက် ထိုးကြေးကို ၂ နဲ့ မြှောက်ရပါမယ်
+            bet_amount = int(m.group(2))
+            total += bet_amount * 2
+            continue
 
-        # 2. Normal format ကို စစ်မယ် (ဥပမာ - "5 10")
-        m = re.search(r"(\d+)\s+(\d+)", line)
+        # 2. Normal format (အာမပါ၊ အတည့်ပဲ) - ဥပမာ "57 10000"
+        m = re.match(r"^(\d+)\s+(\d+)$", line)
         if m:
-            total += int(m.group(1)) * int(m.group(2))
+            # အာမပါရင် ၁ ကွက်စာပဲမို့လို့ ထိုးကြေးအတိုင်းပဲ ပေါင်းပါမယ်
+            bet_amount = int(m.group(2))
+            total += bet_amount
 
     return total
+
+# စမ်းသပ်ကြည့်ခြင်း
+print(calc("57 R 10000"))  # အဖြေမှန် 20000 ထွက်လာပါလိမ့်မယ်။
+print(calc("57 10000"))    # အဖြေမှန် 10000 ထွက်လာပါလိမ့်မယ်။
 
 
     await update.message.reply_text(f"📊 Total = {total:,} MMK")
