@@ -7,44 +7,33 @@ TOKEN = os.getenv("BOT_TOKEN")
 
 
 # reverse helper
-def reverse_num(n: str):
-    return n[::-1]
-
-
 def calc(text: str):
     total = 0
+    import re
 
-    # split lines first
-    lines = text.split()
+    items = text.split()
 
     i = 0
-    while i < len(lines):
-        part = lines[i]
+    while i < len(items):
+        part = items[i]
 
-        # clean dots
-        part = part.replace(".", " ")
+        if "R" in part or (i + 1 < len(items) and items[i+1] == "R"):
+            nums = re.findall(r"\d+", part)
 
-        # R case
-        if "R" in part:
-            # handle cases like 52R20000 or 52 R 20000
-            match = re.findall(r"(\d+)", part)
-            if len(match) >= 2:
-                nums_part = match[:-1]
-                amount = int(match[-1])
+            # handle cases like "52 R 20000"
+            if len(nums) == 1 and i + 2 < len(items):
+                num = nums[0]
+                amount = int(items[i+2])
 
-                count = 0
-
-                for num in nums_part:
-                    count += 1  # original
-                    count += 1  # reverse
-
-                total += count * amount
+                # reverse pair
+                total += 2 * amount
+                i += 3
+                continue
 
         else:
-            # normal number case (flat)
-            match = re.findall(r"\d+", part)
-            if len(match) == 1:
-                total += int(match[0])
+            nums = re.findall(r"\d+", part)
+            if len(nums) == 1:
+                total += int(nums[0])
 
         i += 1
 
