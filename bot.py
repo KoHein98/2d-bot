@@ -5,19 +5,16 @@ import re
 
 TOKEN = os.getenv("BOT_TOKEN")
 
+# =========================
+# 🧠 MEMORY STORE
+# =========================
+data_store = {}
+
 
 # =========================
-# 🧠 CALCULATOR (NO MEMORY)
+# 🧠 CALCULATOR
 # =========================
 def calc(text: str):
-    cat = {
-        "khwe": 0,
-        "khwepue": 0,
-        "apue": 0,
-        "r": 0,
-        "normal": 0
-    }
-
     total = 0
 
     for line in text.splitlines():
@@ -35,73 +32,76 @@ def calc(text: str):
         amount = int(nums[-1])
         line_clean = line[::-1].replace(nums[-1][::-1], "", 1)[::-1]
 
-        # 🔴 အပူး
         if "အပူး" in line_clean:
-            val = 10 * amount
-            cat["apue"] += val
-            total += val
+            total += 10 * amount
             continue
 
-        # 🟣 ခွေပူး
         if "ခွေပူး" in line_clean:
             digits = "".join(re.findall(r"\d", line_clean))
-            n = len(digits)
-            val = (n * n) * amount
-            cat["khwepue"] += val
-            total += val
+            total += (len(digits) ** 2) * amount
             continue
 
-        # 🟢 ခွေ
         if "ခွေ" in line_clean and "ခွေပူး" not in line_clean:
             digits = "".join(re.findall(r"\d", line_clean))
-            n = len(digits)
-            val = (n * (n - 1)) * amount
-            cat["khwe"] += val
-            total += val
+            total += (len(digits) * (len(digits) - 1)) * amount
             continue
 
-        # 🔵 R
         if "R" in line_clean.upper():
             nums_r = re.findall(r"\d+", line_clean)
-            val = len(nums_r) * 2 * amount
-            cat["r"] += val
-            total += val
+            total += len(nums_r) * 2 * amount
             continue
 
-        # 🟡 NORMAL
         nums_only = re.findall(r"\d+", line_clean)
-        val = len(nums_only) * amount
-        cat["normal"] += val
-        total += val
+        total += len(nums_only) * amount
 
-    return cat, total
+    return total
 
 
 # =========================
 # 🤖 MESSAGE HANDLER
 # =========================
 async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    cat, total = calc(update.message.text)
+    chat_id = update.effective_chat.id
+    text = update.message.text
 
-    message = (
-        "📊 *BREAKDOWN*\n\n"
-        f"🟢 ခွေ = {cat['khwe']:,}\n"
-        f"🟣 ခွေပူး = {cat['khwepue']:,}\n"
-        f"🔴 အပူး = {cat['apue']:,}\n"
-        f"🔵 R = {cat['r']:,}\n"
-        f"🟡 NORMAL = {cat['normal']:,}\n"
-        f"\n➕ *Batch Total = {total:,}*\n\n"
-        "👉 ဒီ message တစ်ခါချင်းတွက်တာပဲ"
+    total = calc(text)
+
+    data_store.setdefault(chat_id, 0)
+    data_store[chat_id] += total
+
+    await update.message.reply_text(
+        f"📊 Batch Total = {total:,}\n👉 /total ရိုက်ပြီးစုကြည့်နိုင်ပါတယ်"
     )
 
-    await update.message.reply_text(message, parse_mode="Markdown")
+
+# =========================
+# 📌 TOTAL COMMAND
+# =========================
+async def show_total(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    total = data_store.get(chat_id, 0)
+
+    await update.message.reply_text(f"💰 TOTAL = {total:,} MMK")
+
+
+# =========================
+# 🔄 RESET COMMAND
+# =========================
+async def reset_total(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    data_store[chat_id] = 0
+
+    await update.message.reply_text("♻️ TOTAL RESET DONE")
 
 
 # =========================
 # 🚀 RUN BOT
 # =========================
 app = Application.builder().token(TOKEN).build()
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handler))
 
-print("🚀 NO MEMORY 2D BOT RUNNING...")
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handler))
+app.add_handler(CommandHandler("total", show_total))
+app.add_handler(CommandHandler("reset", reset_total))
+
+print("🚀 TOTAL COMMAND BOT RUNNING...")
 app.run_polling()
