@@ -25,21 +25,72 @@ def parse_line(line):
 
     amount = int(nums[-1])
 
-    # remove last number only
     clean = line[::-1].replace(nums[-1][::-1], "", 1)[::-1].strip()
 
-    # extract numbers inside text
     numbers = re.findall(r"\d+", clean)
 
     return {
         "text": line,
+        "clean": clean,
         "amount": amount,
         "numbers": numbers
     }
 
 
 # =========================
-# 🤖 STORE MESSAGES
+# 🧠 CALC SINGLE MESSAGE
+# =========================
+def calc_message(lines):
+    cat = {
+        "khwe": 0,
+        "khwepue": 0,
+        "apue": 0,
+        "r": 0,
+        "normal": 0
+    }
+
+    total = 0
+
+    for b in lines:
+        line = b["clean"]
+        amount = b["amount"]
+
+        if "အပူး" in line:
+            val = 10 * amount
+            cat["apue"] += val
+            total += val
+            continue
+
+        if "ခွေပူး" in line:
+            n = len(b["numbers"])
+            val = (n * n) * amount
+            cat["khwepue"] += val
+            total += val
+            continue
+
+        if "ခွေ" in line and "ခွေပူး" not in line:
+            n = len(b["numbers"])
+            val = (n * (n - 1)) * amount
+            cat["khwe"] += val
+            total += val
+            continue
+
+        if "R" in line.upper():
+            nums_r = re.findall(r"\d+", line)
+            val = len(nums_r) * 2 * amount
+            cat["r"] += val
+            total += val
+            continue
+
+        val = len(b["numbers"]) * amount
+        cat["normal"] += val
+        total += val
+
+    return cat, total
+
+
+# =========================
+# 🤖 MESSAGE HANDLER (LINE TOTAL)
 # =========================
 async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
@@ -47,49 +98,54 @@ async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     data_store.setdefault(chat_id, [])
 
+    parsed_lines = []
+
     for line in text.splitlines():
         parsed = parse_line(line)
         if parsed:
             data_store[chat_id].append(parsed)
+            parsed_lines.append(parsed)
 
-    await update.message.reply_text("✔ Saved")
+    cat, total = calc_message(parsed_lines)
+
+    await update.message.reply_text(
+        "📊 LINE RESULT\n\n"
+        f"🟢 ခွေ = {cat['khwe']:,}\n"
+        f"🟣 ခွေပူး = {cat['khwepue']:,}\n"
+        f"🔴 အပူး = {cat['apue']:,}\n"
+        f"🔵 R = {cat['r']:,}\n"
+        f"🟡 NORMAL = {cat['normal']:,}\n\n"
+        f"💰 Line Total = {total:,}\n"
+        "👉 /total <number> for filter"
+    )
 
 
 # =========================
-# 🔎 FILTER + TOTAL
+# 🔎 FILTER COMMAND
 # =========================
 async def smart_total(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     bets = data_store.get(chat_id, [])
 
-    # =========================
     # FULL TOTAL
-    # =========================
     if not context.args:
-        total = sum(b["amount"] for b in bets)
+        cat, total = calc_message(bets)
         await update.message.reply_text(f"💰 TOTAL = {total:,}")
         return
 
     query = context.args[0]
 
     filtered = []
-    total = 0
-
-    # =========================
-    # EXACT MATCH FILTER
-    # =========================
     for b in bets:
         if query in b["numbers"]:
             filtered.append(b)
-            total += b["amount"]
 
     if not filtered:
         await update.message.reply_text("❌ No match found")
         return
 
-    # =========================
-    # OUTPUT
-    # =========================
+    cat, total = calc_message(filtered)
+
     msg = f"📊 Filter: {query}\n\n"
 
     for b in filtered:
@@ -108,5 +164,5 @@ app = Application.builder().token(TOKEN).build()
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handler))
 app.add_handler(CommandHandler("total", smart_total))
 
-print("🚀 CLEAN FILTER BOT RUNNING...")
+print("🚀 FULL COMBINED 2D BOT RUNNING...")
 app.run_polling()
