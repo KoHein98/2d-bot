@@ -9,27 +9,24 @@ data_store = {}
 
 
 # =========================
-# 🧹 CLEAN TEXT
+# 🧹 CLEAN FUNCTION (IMPORTANT FIX)
 # =========================
-def clean_text(text):
-    text = text.replace("..", " ")
-    text = re.sub(r"\.+", " ", text)   # FIX: dot bug
-    text = re.sub(r"\s+", " ", text)
-    return text.strip()
+def clean(line):
+    line = line.replace(".", " ")
+    line = re.sub(r"\s+", " ", line)
+    return line.strip()
 
 
 # =========================
-# 🧠 CALC ENGINE
+# 🧠 CALCULATOR
 # =========================
 def calc(text: str):
     total = 0
 
     for line in text.splitlines():
-        line = line.strip()
+        line = clean(line)
         if not line:
             continue
-
-        line = clean_text(line)
 
         nums = re.findall(r"\d+", line)
         if not nums:
@@ -38,49 +35,27 @@ def calc(text: str):
         amount = int(nums[-1])
 
         # remove last number
-        main_part = line[::-1].replace(nums[-1][::-1], "", 1)[::-1]
+        main = line[::-1].replace(nums[-1][::-1], "", 1)[::-1]
 
         # =========================
-        # 🔥 R MUST BE FIRST (IMPORTANT FIX)
+        # 🔥 R LOGIC FIXED (STABLE)
         # =========================
         if "R" in line.upper():
             nums_r = re.findall(r"\d+", line)
 
-            # TYPE 2: 10 17 R 40000
+            # TYPE 2: 15 10000 R 20000
             if len(nums_r) == 3:
                 total += int(nums_r[1]) + int(nums_r[2])
                 continue
 
             # TYPE 1: 50 57 R 10000
-            count = len(nums_r) - 1
-            total += count * 2 * amount
-            continue
+            if len(nums_r) >= 2:
+                count = len(nums_r) - 1
+                total += count * 2 * amount
+                continue
 
         # =========================
-        # 🔥 အပူး
-        # =========================
-        if "အပူး" in main_part:
-            total += 10 * amount
-            continue
-
-        # =========================
-        # 🔥 ခွေပူး
-        # =========================
-        if "ခွေပူး" in main_part:
-            digits = re.findall(r"\d", main_part)
-            total += (len(digits) ** 2) * amount
-            continue
-
-        # =========================
-        # 🔥 ခွေ
-        # =========================
-        if "ခွေ" in main_part and "ခွေပူး" not in main_part:
-            digits = re.findall(r"\d", main_part)
-            total += (len(digits) * (len(digits) - 1)) * amount
-            continue
-
-        # =========================
-        # DEFAULT
+        # DEFAULT RULE
         # =========================
         total += len(nums) * amount
 
@@ -88,7 +63,7 @@ def calc(text: str):
 
 
 # =========================
-# 🤖 HANDLER
+# 🤖 MESSAGE HANDLER
 # =========================
 async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
@@ -126,7 +101,7 @@ async def reset_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # =========================
-# 🚀 RUN BOT
+# 🚀 RUN
 # =========================
 app = Application.builder().token(TOKEN).build()
 
@@ -134,5 +109,5 @@ app.add_handler(CommandHandler("total", total_cmd))
 app.add_handler(CommandHandler("reset", reset_cmd))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handler))
 
-print("🚀 FIXED 2D BOT RUNNING...")
+print("🚀 BOT RUNNING...")
 app.run_polling()
