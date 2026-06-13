@@ -5,9 +5,6 @@ import re
 
 TOKEN = os.getenv("BOT_TOKEN")
 
-# =========================
-# 🧠 STORAGE (RAW TEXT)
-# =========================
 data_store = {}
 
 
@@ -16,13 +13,13 @@ data_store = {}
 # =========================
 def clean_text(text):
     text = text.replace("..", " ")
-    text = text.replace(".", " ")
+    text = re.sub(r"\.+", " ", text)   # FIX: dot bug
     text = re.sub(r"\s+", " ", text)
     return text.strip()
 
 
 # =========================
-# 🧠 CALC ENGINE (YOUR RULES)
+# 🧠 CALC ENGINE
 # =========================
 def calc(text: str):
     total = 0
@@ -40,8 +37,24 @@ def calc(text: str):
 
         amount = int(nums[-1])
 
-        # remove last number (stake)
+        # remove last number
         main_part = line[::-1].replace(nums[-1][::-1], "", 1)[::-1]
+
+        # =========================
+        # 🔥 R MUST BE FIRST (IMPORTANT FIX)
+        # =========================
+        if "R" in line.upper():
+            nums_r = re.findall(r"\d+", line)
+
+            # TYPE 2: 10 17 R 40000
+            if len(nums_r) == 3:
+                total += int(nums_r[1]) + int(nums_r[2])
+                continue
+
+            # TYPE 1: 50 57 R 10000
+            count = len(nums_r) - 1
+            total += count * 2 * amount
+            continue
 
         # =========================
         # 🔥 အပူး
@@ -67,22 +80,6 @@ def calc(text: str):
             continue
 
         # =========================
-        # 🔥 R LOGIC (FINAL FIXED)
-        # =========================
-        if "R" in line.upper():
-            nums_r = re.findall(r"\d+", line)
-
-            # TYPE 2: 15 10000 R 20000
-            if len(nums_r) == 3:
-                total += int(nums_r[1]) + int(nums_r[2])
-                continue
-
-            # TYPE 1: 50 57 R 10000
-            count = len(nums_r) - 1
-            total += count * 2 * amount
-            continue
-
-        # =========================
         # DEFAULT
         # =========================
         total += len(nums) * amount
@@ -91,7 +88,7 @@ def calc(text: str):
 
 
 # =========================
-# 🤖 MESSAGE HANDLER
+# 🤖 HANDLER
 # =========================
 async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
@@ -108,52 +105,15 @@ async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # =========================
-# 💰 /TOTAL COMMAND
+# 💰 TOTAL
 # =========================
 async def total_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     history = data_store.get(chat_id, [])
 
-    # =========================
-    # GRAND TOTAL
-    # =========================
-    if not context.args:
-        total = calc("\n".join(history))
-        await update.message.reply_text(f"💰 GRAND TOTAL = {total:,}")
-        return
+    total = calc("\n".join(history))
 
-    # =========================
-    # FILTER MODE (/total 11)
-    # =========================
-    query = context.args[0]
-
-    results = []
-    total = 0
-
-    for text in history:
-        for line in text.splitlines():
-            clean = clean_text(line)
-            nums = re.findall(r"\d+", clean)
-
-            if len(nums) < 2:
-                continue
-
-            amount = int(nums[-1])
-            main = clean[::-1].replace(nums[-1][::-1], "", 1)[::-1]
-
-            if query in nums[:-1]:
-                results.append(f"{query} → {amount:,}")
-                total += amount
-
-    if not results:
-        await update.message.reply_text("❌ No match found")
-        return
-
-    msg = f"📊 Number {query}\n\n"
-    msg += "\n".join(results)
-    msg += f"\n\n💰 Total = {total:,}"
-
-    await update.message.reply_text(msg)
+    await update.message.reply_text(f"💰 TOTAL = {total:,}")
 
 
 # =========================
@@ -174,5 +134,5 @@ app.add_handler(CommandHandler("total", total_cmd))
 app.add_handler(CommandHandler("reset", reset_cmd))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handler))
 
-print("🚀 FINAL 2D BOT RUNNING...")
+print("🚀 FIXED 2D BOT RUNNING...")
 app.run_polling()
