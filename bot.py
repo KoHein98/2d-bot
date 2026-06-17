@@ -5,8 +5,10 @@ import re
 
 TOKEN = os.getenv("BOT_TOKEN")
 
+# =========================
+# 💾 MEMORY STORE
+# =========================
 data_store = {}
-
 
 # =========================
 # 🧹 CLEAN FUNCTION
@@ -15,7 +17,6 @@ def clean_text(text: str):
     text = text.replace(".", " ")
     text = re.sub(r"\s+", " ", text)
     return text.strip()
-
 
 # =========================
 # 🧠 CALC ENGINE
@@ -34,37 +35,28 @@ def calc(text: str):
 
         amount = int(nums[-1])
 
-        # remove last number
         main_part = line[::-1].replace(nums[-1][::-1], "", 1)[::-1]
+
         # =========================
         # 🔥 R RULE
         # =========================
         if "R" in line.upper():
 
             fixed = re.sub(r'(\d)R(\d)', r'\1 R \2', line, flags=re.IGNORECASE)
-            fixed = re.sub(r'\s+', ' ', fixed)
-
             nums_r = re.findall(r'\d+', fixed)
 
-            # Split Stake Mode
-            # 74 25000R5000
-            # 74 86 25000R5000
-            if len(nums_r) >= 3 and int(nums_r[-2]) >= 1000:
-
-                normal_amt = int(nums_r[-2])
-                reverse_amt = int(nums_r[-1])
-
-                pair_count = len(nums_r) - 2
-
-                total += pair_count * (normal_amt + reverse_amt)
+            # TYPE 1: special sum (47.25000R15000)
+            if len(nums_r) == 3:
+                total += int(nums_r[-2]) + int(nums_r[-1])
                 continue
 
-            # Pair × 2 Mode
+            # TYPE 2: normal mode (10.40.70R15000)
             amount = int(nums_r[-1])
-            pair_count = len(nums_r) - 1
+            pair_count = len(nums_r) - 2
 
             total += pair_count * 2 * amount
             continue
+
         # =========================
         # 🔥 အပူး
         # =========================
@@ -95,7 +87,6 @@ def calc(text: str):
 
     return total
 
-
 # =========================
 # 🤖 MESSAGE HANDLER
 # =========================
@@ -112,9 +103,8 @@ async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"📊 Batch Total = {total:,}\n✔ Saved"
     )
 
-
 # =========================
-# 💰 /TOTAL
+# 💰 TOTAL COMMAND
 # =========================
 async def total_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
@@ -124,24 +114,26 @@ async def total_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(f"💰 TOTAL = {total:,}")
 
-
 # =========================
-# ♻️ RESET
+# ♻️ RESET COMMAND
 # =========================
 async def reset_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     data_store[chat_id] = []
     await update.message.reply_text("♻️ RESET DONE")
 
-
 # =========================
 # 🚀 RUN BOT
 # =========================
-app = Application.builder().token(TOKEN).build()
+def main():
+    app = Application.builder().token(TOKEN).build()
 
-app.add_handler(CommandHandler("total", total_cmd))
-app.add_handler(CommandHandler("reset", reset_cmd))
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handler))
+    app.add_handler(CommandHandler("total", total_cmd))
+    app.add_handler(CommandHandler("reset", reset_cmd))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handler))
 
-print("🚀 FINAL BOT RUNNING...")
-app.run_polling()
+    print("🚀 BOT RUNNING...")
+    app.run_polling()
+
+if __name__ == "__main__":
+    main()
