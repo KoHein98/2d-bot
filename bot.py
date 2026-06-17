@@ -91,7 +91,7 @@ def calc(text: str):
         # =========================
         # DEFAULT RULE
         # =========================
-        total += len(nums) * amount
+        total += amount
 
     return total
 
