@@ -76,14 +76,15 @@ def calc(text: str):
             continue
 
         # =========================
-        # 🧠 DEFAULT RULE (FIXED)
+        # 🧠 DEFAULT RULE (FINAL FIXED)
         # =========================
-        nums_only = re.findall(r"\d+", line)
-        count = max(len(nums_only) - 1, 0)
+        digits = re.findall(r"\d+", line)
 
-        total += amount if count == 0 else count * amount
-
-    return total
+        if len(digits) <= 1:
+           total += amount
+        else:
+           # safe pair-style fallback
+           total += (len(digits) - 1) * amount
 
 # =========================
 # 🤖 HANDLER
