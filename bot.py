@@ -19,7 +19,7 @@ def clean_text(text: str):
     return text.strip()
 
 # =========================
-# 🧠 CALC ENGINE
+# 🧠 CALC ENGINE (SAFE)
 # =========================
 def calc(text: str):
     total = 0
@@ -34,27 +34,22 @@ def calc(text: str):
             continue
 
         amount = int(nums[-1])
-
         main_part = line[::-1].replace(nums[-1][::-1], "", 1)[::-1]
 
         # =========================
-        # 🔥 R RULE
+        # 🔥 R RULE (SAFE)
         # =========================
         if "R" in line.upper():
-
             fixed = re.sub(r'(\d)R(\d)', r'\1 R \2', line, flags=re.IGNORECASE)
             nums_r = re.findall(r'\d+', fixed)
 
-            # TYPE 1: special sum (47.25000R15000)
-            if len(nums_r) == 3:
+            if len(nums_r) >= 3:
+                # special mode (47.25.15000R15000 style)
                 total += int(nums_r[-2]) + int(nums_r[-1])
-                continue
+            else:
+                # normal R mode
+                total += int(nums_r[-1]) * 2
 
-            # TYPE 2: normal mode (10.40.70R15000)
-            amount = int(nums_r[-1])
-            pair_count = len(nums_r) - 2
-
-            total += pair_count * 2 * amount
             continue
 
         # =========================
@@ -81,14 +76,17 @@ def calc(text: str):
             continue
 
         # =========================
-        # DEFAULT RULE
+        # 🧠 DEFAULT RULE (FIXED)
         # =========================
-        total += amount
+        nums_only = re.findall(r"\d+", line)
+        count = max(len(nums_only) - 1, 0)
+
+        total += amount if count == 0 else count * amount
 
     return total
 
 # =========================
-# 🤖 MESSAGE HANDLER
+# 🤖 HANDLER
 # =========================
 async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
@@ -104,7 +102,7 @@ async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 # =========================
-# 💰 TOTAL COMMAND
+# 💰 TOTAL
 # =========================
 async def total_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
@@ -115,7 +113,7 @@ async def total_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"💰 TOTAL = {total:,}")
 
 # =========================
-# ♻️ RESET COMMAND
+# ♻️ RESET
 # =========================
 async def reset_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
