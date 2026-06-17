@@ -29,6 +29,23 @@ def calc(text: str):
         if not line:
             continue
 
+        # =========================
+        # 🔥 R RULE FIRST (IMPORTANT FIX)
+        # =========================
+        if "R" in line.upper():
+            fixed = re.sub(r'(\d)R(\d)', r'\1 R \2', line, flags=re.IGNORECASE)
+            nums_r = re.findall(r'\d+', fixed)
+
+            if len(nums_r) >= 3:
+                total += int(nums_r[-2]) + int(nums_r[-1])
+            else:
+                total += int(nums_r[-1]) * 2
+
+            continue   # 🔥 MUST STOP HERE
+
+        # =========================
+        # NORMAL PARSE AFTER R EXCLUDED
+        # =========================
         nums = re.findall(r"\d+", line)
         if not nums:
             continue
@@ -36,52 +53,29 @@ def calc(text: str):
         amount = int(nums[-1])
         main_part = line[::-1].replace(nums[-1][::-1], "", 1)[::-1]
 
-        # =========================
-        # 🔥 R RULE (SAFE)
-        # =========================
-        if "R" in line.upper():
-            fixed = re.sub(r'(\d)R(\d)', r'\1 R \2', line, flags=re.IGNORECASE)
-            nums_r = re.findall(r'\d+', fixed)
-
-            if len(nums_r) >= 3:
-               total += int(nums_r[-2]) + int(nums_r[-1])
-            else:
-               total += int(nums_r[-1]) * 2
-            continue
-
-        # =========================
         # 🔥 အပူး
-        # =========================
         if "အပူး" in main_part:
             total += 10 * amount
             continue
 
-        # =========================
         # 🔥 ခွေပူး
-        # =========================
         if "ခွေပူး" in main_part:
             digits = re.findall(r"\d", main_part)
             total += (len(digits) ** 2) * amount
             continue
 
-        # =========================
         # 🔥 ခွေ
-        # =========================
         if "ခွေ" in main_part and "ခွေပူး" not in main_part:
             digits = re.findall(r"\d", main_part)
             total += (len(digits) * (len(digits) - 1)) * amount
             continue
 
-        # =========================
-        # 🧠 DEFAULT RULE (FINAL FIXED)
-        # =========================
-        digits = re.findall(r"\d+", line)
+        # DEFAULT
+        nums_only = re.findall(r"\d+", line)
+        count = len(nums_only) - 1
 
-        if len(digits) <= 1:
-           total += amount
-        else:
-           # safe pair-style fallback
-           total += (len(digits) - 1) * amount
+        total += amount if count <= 0 else count * amount
+
     return total
 
 # =========================
