@@ -44,12 +44,9 @@ def calc(text: str):
             nums_r = re.findall(r'\d+', fixed)
 
             if len(nums_r) >= 3:
-                # special mode (47.25.15000R15000 style)
-                total += int(nums_r[-2]) + int(nums_r[-1])
+               total += int(nums_r[-2]) + int(nums_r[-1])
             else:
-                # normal R mode
-                total += int(nums_r[-1]) * 2
-
+               total += int(nums_r[-1]) * 2
             continue
 
         # =========================
@@ -85,6 +82,7 @@ def calc(text: str):
         else:
            # safe pair-style fallback
            total += (len(digits) - 1) * amount
+    return total
 
 # =========================
 # 🤖 HANDLER
