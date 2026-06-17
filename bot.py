@@ -6,45 +6,59 @@ import re
 TOKEN = os.getenv("BOT_TOKEN")
 
 # =========================
-# 💾 MEMORY STORE
+# 💾 MEMORY
 # =========================
 data_store = {}
 
+
 # =========================
-# 🧹 CLEAN FUNCTION
+# 🧹 CLEAN
 # =========================
 def clean_text(text: str):
     text = text.replace(".", " ")
     text = re.sub(r"\s+", " ", text)
     return text.strip()
 
-# =========================
-# 🧠 CALC ENGINE (SAFE)
-# =========================
-def calc(text: str):
-    total = 0
 
-    for line in text.splitlines():
-        line = clean_text(line)
+# =========================
+# 🧠 CORE ENGINE (WITH DEBUG SUPPORT)
+# =========================
+def calc(text: str, debug=False):
+    total = 0
+    breakdown = []
+
+    for raw_line in text.splitlines():
+        line = clean_text(raw_line)
         if not line:
             continue
 
+        upper_line = line.upper()
+
+        line_result = 0
+
         # =========================
-        # 🔥 R RULE FIRST (IMPORTANT FIX)
+        # 🔥 R RULE (PRIORITY 1)
         # =========================
-        if "R" in line.upper():
-            fixed = re.sub(r'(\d)R(\d)', r'\1 R \2', line, flags=re.IGNORECASE)
-            nums_r = re.findall(r'\d+', fixed)
+        if "R" in upper_line:
+            fixed = re.sub(r'(\d)\s*R\s*(\d)', r'\1 R \2', line, flags=re.IGNORECASE)
+            nums_r = re.findall(r"\d+", fixed)
 
             if len(nums_r) >= 3:
-                total += int(nums_r[-2]) + int(nums_r[-1])
+                line_result = int(nums_r[-2]) + int(nums_r[-1])
+            elif len(nums_r) == 2:
+                line_result = int(nums_r[-1]) * 2
             else:
-                total += int(nums_r[-1]) * 2
+                line_result = 0
 
-            continue   # 🔥 MUST STOP HERE
+            if debug:
+                breakdown.append(f"{line} => R RULE => {line_result}")
+
+            total += line_result
+            continue
+
 
         # =========================
-        # NORMAL PARSE AFTER R EXCLUDED
+        # NORMAL PARSE
         # =========================
         nums = re.findall(r"\d+", line)
         if not nums:
@@ -53,33 +67,61 @@ def calc(text: str):
         amount = int(nums[-1])
         main_part = line[::-1].replace(nums[-1][::-1], "", 1)[::-1]
 
-        # 🔥 အပူး
+
+        # =========================
+        # 🔥 RULE: အပူး
+        # =========================
         if "အပူး" in main_part:
-            total += 10 * amount
+            line_result = 10 * amount
+            total += line_result
+
+            if debug:
+                breakdown.append(f"{line} => အပူး => {line_result}")
             continue
 
-        # 🔥 ခွေပူး
+
+        # =========================
+        # 🔥 RULE: ခွေပူး
+        # =========================
         if "ခွေပူး" in main_part:
             digits = re.findall(r"\d", main_part)
-            total += (len(digits) ** 2) * amount
+            line_result = (len(digits) ** 2) * amount
+            total += line_result
+
+            if debug:
+                breakdown.append(f"{line} => ခွေပူး => {line_result}")
             continue
 
-        # 🔥 ခွေ
+
+        # =========================
+        # 🔥 RULE: ခွေ
+        # =========================
         if "ခွေ" in main_part and "ခွေပူး" not in main_part:
             digits = re.findall(r"\d", main_part)
-            total += (len(digits) * (len(digits) - 1)) * amount
+            line_result = (len(digits) * (len(digits) - 1)) * amount
+            total += line_result
+
+            if debug:
+                breakdown.append(f"{line} => ခွေ => {line_result}")
             continue
 
-        # DEFAULT
-        nums_only = re.findall(r"\d+", line)
-        count = len(nums_only) - 1
 
-        total += amount if count <= 0 else count * amount
+        # =========================
+        # 🔥 DEFAULT RULE
+        # =========================
+        count = len(nums) - 1
 
-    return total
+        line_result = amount if count <= 0 else count * amount
+        total += line_result
+
+        if debug:
+            breakdown.append(f"{line} => DEFAULT => {line_result}")
+
+    return total, breakdown
+
 
 # =========================
-# 🤖 HANDLER
+# 🤖 MESSAGE HANDLER
 # =========================
 async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
@@ -88,11 +130,12 @@ async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data_store.setdefault(chat_id, [])
     data_store[chat_id].append(text)
 
-    total = calc(text)
+    total, _ = calc(text)
 
     await update.message.reply_text(
         f"📊 Batch Total = {total:,}\n✔ Saved"
     )
+
 
 # =========================
 # 💰 TOTAL
@@ -101,9 +144,26 @@ async def total_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     history = data_store.get(chat_id, [])
 
-    total = calc("\n".join(history))
+    total, _ = calc("\n".join(history))
 
     await update.message.reply_text(f"💰 TOTAL = {total:,}")
+
+
+# =========================
+# 🔍 DEBUG COMMAND (NEW)
+# =========================
+async def debug_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    history = data_store.get(chat_id, [])
+
+    total, breakdown = calc("\n".join(history), debug=True)
+
+    msg = "🔍 BREAKDOWN:\n\n" + "\n".join(breakdown[-50:])
+
+    msg += f"\n\n💰 TOTAL = {total:,}"
+
+    await update.message.reply_text(msg)
+
 
 # =========================
 # ♻️ RESET
@@ -113,6 +173,7 @@ async def reset_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data_store[chat_id] = []
     await update.message.reply_text("♻️ RESET DONE")
 
+
 # =========================
 # 🚀 RUN BOT
 # =========================
@@ -120,11 +181,13 @@ def main():
     app = Application.builder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("total", total_cmd))
+    app.add_handler(CommandHandler("debug", debug_cmd))
     app.add_handler(CommandHandler("reset", reset_cmd))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handler))
 
-    print("🚀 BOT RUNNING...")
+    print("🚀 V2 BOT RUNNING...")
     app.run_polling()
+
 
 if __name__ == "__main__":
     main()
