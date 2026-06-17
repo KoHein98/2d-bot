@@ -5,13 +5,10 @@ import re
 
 TOKEN = os.getenv("BOT_TOKEN")
 
-# =========================
-# 💾 MEMORY
-# =========================
 data_store = {}
 
 # =========================
-# 🧹 CLEAN (STABLE INPUT FIX)
+# 🧹 CLEAN (STRICT NORMALIZER)
 # =========================
 def clean_text(text: str):
     text = text.replace(".", " ")
@@ -21,74 +18,65 @@ def clean_text(text: str):
 
 
 # =========================
-# 🧠 CORE ENGINE (FIXED)
+# 🧠 LOCKED ENGINE (NO AMBIGUITY)
 # =========================
-def calc(text: str, debug: bool = False):
+def calc(text: str):
     total = 0
-    breakdown = []
 
     for line in text.splitlines():
         line = clean_text(line)
         if not line:
             continue
 
-        line_total = 0
+        nums = re.findall(r"\d+", line)
 
         # =========================
-        # 🔥 R RULE (FIXED STABLE)
+        # 🔥 RULE 1: R MODE (LOCKED)
         # =========================
         if "R" in line.upper():
-            nums = re.findall(r"\d+", line)
-
             if len(nums) < 2:
                 continue
 
             amount = int(nums[-1])
-            numbers = nums[:-1]
+            selections = nums[:-1]
 
-            line_total = len(numbers) * amount
+            # ✔ each selection = 1 unit
+            total += len(selections) * amount
+            continue
 
+        if not nums:
+            continue
+
+        amount = int(nums[-1])
+
+        # =========================
+        # 🔥 RULE 2: SPECIAL WORDS
+        # =========================
+        if "ခွေပူး" in line:
+            digits = re.findall(r"\d", line)
+            total += (len(digits) ** 2) * amount
+            continue
+
+        if "ခွေ" in line:
+            digits = re.findall(r"\d", line)
+            total += len(digits) * (len(digits) - 1) * amount
+            continue
+
+        if "အပူး" in line:
+            total += 10 * amount
+            continue
+
+        # =========================
+        # 🔥 RULE 3: DEFAULT MODE (LOCKED)
+        # =========================
+        count = len(nums) - 1
+
+        if count <= 0:
+            total += amount
         else:
-            nums = re.findall(r"\d+", line)
-            if not nums:
-                continue
+            total += count * amount
 
-            amount = int(nums[-1])
-
-            # =========================
-            # 🔥 ခွေပူး
-            # =========================
-            if "ခွေပူး" in line:
-                digits = re.findall(r"\d", line)
-                line_total = (len(digits) ** 2) * amount
-
-            # =========================
-            # 🔥 ခွေ
-            # =========================
-            elif "ခွေ" in line:
-                digits = re.findall(r"\d", line)
-                line_total = len(digits) * (len(digits) - 1) * amount
-
-            # =========================
-            # 🔥 အပူး
-            # =========================
-            elif "အပူး" in line:
-                line_total = 10 * amount
-
-            # =========================
-            # 🔥 DEFAULT
-            # =========================
-            else:
-                nums_only = re.findall(r"\d+", line)
-                count = len(nums_only) - 1
-                line_total = amount if count <= 0 else count * amount
-
-        total += line_total
-
-        if debug:
-            breakdown.append(f"{line} = {line_total}")
-
-    return (total, breakdown) if debug else total
+    return total
 
 
 # =========================
@@ -121,21 +109,6 @@ async def total_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # =========================
-# 🔍 DEBUG
-# =========================
-async def debug_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-    history = data_store.get(chat_id, [])
-
-    total, breakdown = calc("\n".join(history), debug=True)
-
-    msg = "🔍 BREAKDOWN:\n\n" + "\n".join(breakdown[-50:])
-    msg += f"\n\n💰 TOTAL = {total:,}"
-
-    await update.message.reply_text(msg)
-
-
-# =========================
 # ♻️ RESET
 # =========================
 async def reset_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -151,11 +124,10 @@ def main():
     app = Application.builder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("total", total_cmd))
-    app.add_handler(CommandHandler("debug", debug_cmd))
     app.add_handler(CommandHandler("reset", reset_cmd))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handler))
 
-    print("🚀 V3 STABLE ENGINE RUNNING...")
+    print("🚀 FINAL V5 LOCK ENGINE RUNNING...")
     app.run_polling()
 
 
