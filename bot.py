@@ -36,24 +36,35 @@ def calc(text: str):
 
         # remove last number
         main_part = line[::-1].replace(nums[-1][::-1], "", 1)[::-1]
-
         # =========================
-        # 🔥 R RULE (FIXED)
+        # 🔥 R RULE
         # =========================
         if "R" in line.upper():
-            nums_r = re.findall(r"\d+", line)
 
-            # TYPE 2: 15 10000 R 20000
-            if len(nums_r) == 3:
-                total += int(nums_r[1]) + int(nums_r[2])
+            fixed = re.sub(r'(\d)R(\d)', r'\1 R \2', line, flags=re.IGNORECASE)
+            fixed = re.sub(r'\s+', ' ', fixed)
+
+            nums_r = re.findall(r'\d+', fixed)
+
+            # Split Stake Mode
+            # 74 25000R5000
+            # 74 86 25000R5000
+            if len(nums_r) >= 3 and int(nums_r[-2]) >= 1000:
+
+                normal_amt = int(nums_r[-2])
+                reverse_amt = int(nums_r[-1])
+
+                pair_count = len(nums_r) - 2
+
+                total += pair_count * (normal_amt + reverse_amt)
                 continue
 
-            # TYPE 1: 50 57 R 10000
-            if len(nums_r) >= 2:
-                count = len(nums_r) - 1
-                total += count * 2 * amount
-                continue
+            # Pair × 2 Mode
+            amount = int(nums_r[-1])
+            pair_count = len(nums_r) - 1
 
+            total += pair_count * 2 * amount
+            continue
         # =========================
         # 🔥 အပူး
         # =========================
