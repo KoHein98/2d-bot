@@ -11,7 +11,7 @@ TOKEN = os.getenv("BOT_TOKEN")
 data_store = {}
 
 # =========================
-# 🧠 CALC ENGINE (FINAL LOCKED)
+# 🧠 CALC ENGINE (FIXED)
 # =========================
 def calc(text: str):
     total = 0
@@ -21,8 +21,8 @@ def calc(text: str):
         if not line:
             continue
 
-        # normalize
-        line = re.sub(r".+", " ", line)
+        # FIXED CLEAN (IMPORTANT)
+        line = re.sub(r"\.+", " ", line)
         line = re.sub(r"\s+", " ", line)
 
         nums = re.findall(r"\d+", line)
@@ -98,7 +98,7 @@ def calc(text: str):
     return total
 
 # =========================
-# 🤖 MESSAGE HANDLER
+# 🤖 HANDLER
 # =========================
 async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
@@ -120,9 +120,7 @@ async def total_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     total = data_store.get(chat_id, 0)
 
-    await update.message.reply_text(
-        f"💰 TOTAL = {total:,}"
-    )
+    await update.message.reply_text(f"💰 TOTAL = {total:,}")
 
 # =========================
 # ♻️ RESET
@@ -131,9 +129,7 @@ async def reset_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     data_store[chat_id] = 0
 
-    await update.message.reply_text(
-        "♻️ RESET DONE"
-    )
+    await update.message.reply_text("♻️ RESET DONE")
 
 # =========================
 # 🚀 RUN BOT
@@ -145,7 +141,8 @@ def main():
     app.add_handler(CommandHandler("reset", reset_cmd))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handler))
 
-    print("🚀 FINAL LOCKED BOT RUNNING...")
+    print("🚀 BOT RUNNING...")
     app.run_polling()
 
-if name == "__mai
+if __name__ == "__main__":
+    main()
